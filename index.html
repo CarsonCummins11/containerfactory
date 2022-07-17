@@ -53,6 +53,7 @@
                             `
                         )
                     }
+                    $('#sb-container').html('<button class="search-button" onclick="do_program_search()">Search</button>')
                 })
             }
 
@@ -71,6 +72,7 @@
                             `
                         )
                     }
+                    $('#sb-container').html('<button class="search-button" onclick="do_program_search()">Search</button>')
                 })
             }
 
@@ -89,6 +91,7 @@
                             `
                         )
                     }
+                    $('#sb-container').html('<button class="search-button" onclick="do_program_search()">Search</button>')
                 })
             }
             function select_os(os){
@@ -132,6 +135,7 @@
             }
             function do_program_search(){
                 $('#program-results').html('')
+                $('#sb-container').html('<img src="spinner.svg" style="width: 40px">')
                 query = $('#search-programs').val()
                 if(docker['os'] == 'ubuntu'){
                     get_ubuntu_packages(query)
@@ -313,7 +317,9 @@
                     </div>
                     <div style="width: 100%; display: flex; align-items: center; justify-content: center; margin-top: 15px; gap: 20px;">
                         <input id="search-programs" class="search-box" placeholder="search programs">
-                        <button class="search-button" onclick="do_program_search()">Search</button>
+                        <div id="sb-container">
+                            <button class="search-button" onclick="do_program_search()">Search</button>
+                        </div>
                     </div>
                     <div id="program-results" style="display: flex; flex-direction:column; gap: 30px; align-items: center; justify-content: center; width: 100%; margin-top: 40px;">
 
