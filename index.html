@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script>
+            docker_json_description_ex = {
+                'os':'ubuntu',
+                'programs':['python3'],
+                'extras':[
+                    'python-requirements'
+                ],
+                'entrypoint':'start.sh'
+            }
+            next_uid = 0;
+            docker = {'extras':[]}
+            function get_install_command(spec){
+                if(spec['os'] === 'ubuntu') {
+                    return "apt-get install -y"
+                }else if(spec['os'] === 'debian'){
+                    return "apt install -y"
+                }else if(spec['os'] === 'amazonlinux'){
+                    return 'yum install -y'
+                }
+            }
+            function get_extras_command(extra){
+                if(program === 'python3'){
+                    return 'python3 -m pip install -y requirements.txt'
+                }
+            }
+            function render_extra_scripts(spec){
+                ret = "";
+                for(extra in spec['extras']){
+                    ret += `RUN ${get_extras_command(extra)}\n`;                      
+                }
+                return ret;
+            }
+            function render_dockerfile(spec){
+                return `FROM ${spec['os']}\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\n#${render_extra_scripts(spec)}\nRUN chmod +x ./${spec['entrypoint']}\nCMD ["./${spec['entrypoint']}"]`
+            }
+
+            function get_ubuntu_packages(query_d){
+                query = encodeURIComponent(query_d).replace('%20','+')
+                url =  'https://bck7xzxlyk46gits7vgjbpyilu0vejaa.lambda-url.us-east-1.on.aws/?name=ubuntu&query='+query
+                $.getJSON(url,function(data){
+                    for(var i = 0; i<data.length; i++){
+                        name = data[i]
+                        $('#program-results').html(
+                            $('#program-results').html()+
+                            `
+                                <button class="add-program" onclick="add_program('${name}')">
+                                    ${name}
+                                </button>
+                            `
+                        )
+                    }
+                })
+            }
+
+            function get_debian_packages(query_d){
+                query = encodeURIComponent(query_d).replace('%20','+')
+                url =  'https://bck7xzxlyk46gits7vgjbpyilu0vejaa.lambda-url.us-east-1.on.aws/?name=debian&query='+query
+                $.getJSON(url,function(data){
+                    for(var i = 0; i<data.length; i++){
+                        name = data[i]
+                        $('#program-results').html(
+                            $('#program-results').html()+
+                            `
+                                <button class="add-program" onclick="add_program('${name}')">
+                                    ${name}
+                                </button>
+                            `
+                        )
+                    }
+                })
+            }
+
+            function get_amazon_packages(query_d){
+                query = encodeURIComponent(query_d).replace('%20','+')
+                url =  'https://bck7xzxlyk46gits7vgjbpyilu0vejaa.lambda-url.us-east-1.on.aws/?name=amazonlinux&query='+query
+                $.getJSON(url,function(data){
+                    for(var i = 0; i<data.length; i++){
+                        name = data[i]
+                        $('#program-results').html(
+                            $('#program-results').html()+
+                            `
+                                <button class="add-program" onclick="add_program('${name}')">
+                                    ${name}
+                                </button>
+                            `
+                        )
+                    }
+                })
+            }
+            function select_os(os){
+                docker['os'] = os
+                $('#step').html('Step 2 of 3')
+                $('#question').html('What programs would you like installed?')
+                $('#explanation').html('This is where you would select options like "Python" or "MongoDB".  The programs will be installed with their most recent versions. Custom versioning will come soon :) <button class="next-button" onclick="select_programs()">Next</button>')
+                $('#os-select').css('display','none');
+                $('#program-select').css('display','flex')
+                docker['programs'] = []
+            }
+            function select_programs(){
+                $('#step').html('Step 3 of 3')
+                $('#question').html('What is the .sh file that should run?')
+                $('#explanation').html('This should be the .sh file that runs your code (or is your code). This file will be run upon boot of you docker container. If you haven\'t written a .sh file before, don\'t fret. Simply type the command you use to run your code into a file ending with .sh, and put the name of that file here. <button class="next-button" onclick="finish_flow()">Download dockerfile</button>')
+                $('#program-select').css('display','none')
+                $('#entrypoint-input').css('display','flex')
+            }
+            function finish_flow(){
+                docker['entrypoint'] = $('#sh-box').val()
+                download('dockerfile',render_dockerfile(docker))
+            }
+            function add_program(name){
+                uid = next_uid.toString();
+                next_uid += 1;
+                $('#program-container').html(
+                    $('#program-container').html() + 
+                `<div id="${uid}" class="program-tag">
+                    <div>
+                        ${name}
+                    </div>
+                    <svg class="program-remove" onclick="remove_program('#${uid}','${name}')" width="15" height="15" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6.75827 17.2426L12.0009 12M17.2435 6.75736L12.0009 12M12.0009 12L6.75827 6.75736M12.0009 12L17.2435 17.2426" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>`);
+                docker['programs'].push(name)
+            }
+            function remove_program(uid, name){
+                $(uid).remove();
+                docker['programs'] = docker['programs'].filter(function(e) { return e !== name })
+            }
+            function do_program_search(){
+                $('#program-results').html('')
+                query = $('#search-programs').val()
+                if(docker['os'] == 'ubuntu'){
+                    get_ubuntu_packages(query)
+                }else if(docker['os'] == 'debian'){
+                    get_debian_packages(query)
+                }else{
+                    get_amazon_packages(query)
+                }
+            }
+            function download(filename, text) {
+                var element = document.createElement('a');
+                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+                element.setAttribute('download', filename);
+
+                element.style.display = 'none';
+                document.body.appendChild(element);
+
+                element.click();
+
+                document.body.removeChild(element);
+            }
+        </script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+            body{
+                margin: 0px;
+                padding: 0px;
+                font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .os-card{
+                border: 1px solid #e6e6e6;
+                border-radius: 6px;
+                padding: 25px;
+                width: 60%;
+                text-decoration: none;
+                color: black;
+                transition: 0.2s;
+            }
+            .next-button{
+                border: 1px solid white;
+                border-radius: 4px;
+                padding: 7px 20px 7px 20px;
+                color: white;
+                background: none;
+                margin-top: 15px;
+                transition: 0.3s;
+            }
+            .next-button:hover{
+                cursor: pointer;
+                box-shadow:  inset white 0px 0px 2px, inset white 0px 0px 0px 1px;
+            }
+            .os-card:hover{
+                border: 1px solid #55C755;
+            }
+            
+            .coffee-link{
+                position: fixed;
+                bottom: 0px;
+                margin: 0px 0px 20px 20px;
+                color: white;
+            }
+            .coffee-link:hover{
+                color: whitesmoke;
+            }
+            .program-tag{
+                display: flex;
+                gap: 14px;
+                color: #727272;
+                background-color: #e6e6e6;
+                border-radius: 4px;
+                padding: 5px 14px 5px 14px;
+                width: min-content;
+                font-size: 12px;
+                align-items: center;
+                height: min-content;
+                white-space: nowrap;
+            }
+            .program-remove:hover{
+                color:#55C755;
+                cursor: pointer;
+            }
+            .search-box{
+                border: 1px solid #b0b0b0;
+                min-width: calc(70% - 90px);
+                max-width: calc(70% - 90px);
+                padding: 10px;
+                border-radius: 4px;
+                display: block;
+            }
+            .search-box:focus{
+                border: 1px solid #727272;
+                outline: none;
+            }
+            .sh-box{
+                border: 1px solid #b0b0b0;
+                padding: 10px;
+                border-radius: 4px;
+                display: block;
+                margin-top: 10px;
+            }
+            .sh-box:focus{
+                border: 1px solid #55C755;
+                outline: none;
+            }
+            .search-button{
+                border-radius: 4px;
+                padding: 5px 14px 5px 14px;
+                border: 1px solid #55C755;
+                color: #55C755;
+                background-color: white;
+                display: block;
+                transition: 0.3s;
+            }
+            .search-button:hover{
+                background-color: #55c75545;
+                cursor: pointer;
+                box-shadow:  inset #55C755 0px 0px 2px, inset #55C755 0px 0px 0px 1px;
+            }
+            .add-program{
+                padding-bottom: 15px;
+                color: black;
+                border: none;
+                background: none;
+                text-align: left;
+                border-bottom: 1px solid black;
+                width: calc(70% + 20px);
+            }
+            .add-program:hover{
+                cursor: pointer;
+                color: #55C755;
+                border-bottom: 1px solid #55C755;
+            }
+        </style>
+    </head>
+    <body>
+        <div style="display: grid; width: 100vw; height: 100vh; grid-template-columns: 1fr 1fr;">
+            <div style="background-image: url('background.svg'); background-position: center center; background-size: cover;">
+                <div style="font-size: 25px; font-weight: 600; line-height: 22px; color: white; padding: 20px 0px 0px 20px;">
+                    Container<br>Factory
+                </div>
+                <div style="margin-top: 100px;font-size: 20px; font-weight: 600; color: white; width: 100%; display: flex; justify-content: center;">
+                    <div id="step" style="max-width: 480px; min-width: 480px">
+                        Step 1 of 3
+                    </div>
+                </div>
+                <div style="font-size: 40px; font-weight: 600; color: white; width: 100%; display: flex; justify-content: center; margin-top: 30px;">
+                    <div id="question" style="max-width: 480px;">
+                        What operating system seems like a good fit?
+                    </div>
+                </div> 
+                <div style="font-size: 16px; font-weight: 300; color: white; width: 100%; display: flex; justify-content: center; margin-top: 30px;">
+                    <div id="explanation"  style="max-width: 480px;">
+                        This is the base layer of your docker image. We'll help you install all the other packages and libraries you need later. Just pick your favorite option.
+                    </div>
+                </div>
+                <a class="coffee-link" href="https://www.buymeacoffee.com/carsoncummins">
+                    Buy me a coffee
+                </a>
+            </div>
+            <div id="right-pane" style="min-width: 500px;">
+                <div id="os-select" style="width: 100%; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 50px">
+                    <a href="#" onclick="select_os('ubuntu')" class="os-card">
+                        Ubuntu
+                    </a>
+                    <a href="#" onclick="select_os('debian')" class="os-card">
+                        Debian
+                    </a>
+                    <a href="#"  onclick="select_os('amazonlinux')"class="os-card">
+                        Amazon Linux
+                    </a>
+                </div>
+                <div id="program-select" style="width: 100%; display:flex; flex-direction: column; align-items: center; display: none; margin-top: 100px;">
+                    <div style="border-radius: 6px; border: 1px solid #b0b0b0; padding: 10px; width: 70%; max-width: 70%; display: flex; flex-wrap: wrap; gap: 10px; color: #b0b0b0; font-size: 14px;" id="program-container">
+                        
+                    </div>
+                    <div style="width: 100%; display: flex; align-items: center; justify-content: center; margin-top: 15px; gap: 20px;">
+                        <input id="search-programs" class="search-box" placeholder="search programs">
+                        <button class="search-button" onclick="do_program_search()">Search</button>
+                    </div>
+                    <div id="program-results" style="display: flex; flex-direction:column; gap: 30px; align-items: center; justify-content: center; width: 100%; margin-top: 40px;">
+
+                    </div>
+                </div>
+                <div id="entrypoint-input" style="width: 100%; height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 50px; display: none;">
+                    <div style="width: 70%;">
+                        Name your .sh file
+                        <input class="sh-box" id="sh-box" style="min-width: 100%;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
