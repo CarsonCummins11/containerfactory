@@ -12,7 +12,7 @@
                 'entrypoint':'start.sh'
             }
             next_uid = 0;
-            docker = {'extras':[]}
+            docker = {'extras':[],'http':false,'https':false}
             function get_install_command(spec){
                 if(spec['os'] === 'ubuntu') {
                     return "apt-get install -y"
@@ -35,7 +35,7 @@
                 return ret;
             }
             function render_dockerfile(spec){
-                return `FROM ${spec['os']}\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\n#${render_extra_scripts(spec)}\nRUN chmod +x ./${spec['entrypoint']}\nCMD ["./${spec['entrypoint']}"]`
+                return `FROM ${spec['os']}\\nENV HOME ~\\nWORKDIR $HOME\\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\\n#${render_extra_scripts(spec)}\\nRUN chmod +x ./${spec['entrypoint']}\\nCMD ["./${spec['entrypoint']}"]`
             }
 
             function get_ubuntu_packages(query_d){
@@ -98,21 +98,21 @@
                 docker['os'] = os
                 $('#step').html('Step 2 of 3')
                 $('#question').html('What programs would you like installed?')
-                $('#explanation').html('This is where you would select options like "Python" or "MongoDB".  The programs will be installed with their most recent versions. Custom versioning will come soon :) <button class="next-button" onclick="select_programs()">Next</button>')
+                $('#explanation').html('This is where you would select options like "python" or "mongodb".  The programs will be installed with their most recent versions. Custom versioning will come soon :) <button class="next-button" onclick="select_programs()">Next</button>')
                 $('#os-select').css('display','none');
                 $('#program-select').css('display','flex')
                 docker['programs'] = []
             }
             function select_programs(){
                 $('#step').html('Step 3 of 3')
-                $('#question').html('What is the .sh file that should run?')
-                $('#explanation').html('This should be the .sh file that runs your code (or is your code). This file will be run upon boot of you docker container. If you haven\'t written a .sh file before, don\'t fret. Simply type the command you use to run your code into a file ending with .sh, and put the name of that file here. <button class="next-button" onclick="finish_flow()">Download dockerfile</button><div style="color: white; font-weight: 300; font-size: 12px; margin-top: 15px;">Click the Container Factory logo to start over.</div>')
+                $('#question').html('Just a few more questions')
+                $('#explanation').html('First, check whether or not your app uses http or https. This matters if you want your app to talk to the internet. Then, if you want a bash script to run when your container starts, give us the name. When you hit "download bash script", we\'ll give you a bash script that will run your code within a docker container. It\'s that easy. <br><button class="next-button" onclick="finish_flow()">Download bash script</button><div style="color: white; font-weight: 300; font-size: 12px; margin-top: 15px;">Click the Container Factory logo to start over.</div>')
                 $('#program-select').css('display','none')
                 $('#entrypoint-input').css('display','flex')
             }
             function finish_flow(){
                 docker['entrypoint'] = $('#sh-box').val()
-                download('dockerfile',render_dockerfile(docker))
+                download('run_in_docker.sh',render_run_sh())
             }
             function add_program(name){
                 uid = next_uid.toString();
@@ -144,6 +144,42 @@
                 }else{
                     get_amazon_packages(query)
                 }
+            }
+            function render_run_sh(){
+                ports = []
+                if(docker['http'] == true){
+                    ports.push('-p 80:80')
+                }
+                if(docker['https'] == true){
+                    ports.push('-p 443:443')
+                }
+                return `
+                    echo '${render_dockerfile(docker)}' > dockerfile
+                    docker container stop containerfactoryxyz
+                    docker rm containerfactoryxyz --force
+                    docker build . -t containerfactoryxyz_image
+                    docker run --name containerfactoryxyz ${ports.join(' ')} --mount type=bind,source="$(pwd)",target=~ containerfactoryxyz_image
+                `
+            }
+            function select_http(){
+                if(docker['http']){
+                    $('#http-button').addClass('checkbox')
+                    $('#http-button').removeClass('checked')
+                }else{
+                    $('#http-button').addClass('checked')
+                    $('#http-button').removeClass('checkbox')
+                }
+                docker['http'] = !docker['http']
+            }
+            function select_https(){
+                if(docker['https']){
+                    $('#https-button').addClass('checkbox')
+                    $('#https-button').removeClass('checked')
+                }else{
+                    $('#https-button').addClass('checked')
+                    $('#https-button').removeClass('checkbox')
+                }
+                docker['https'] = !docker['https']
             }
             function download(filename, text) {
                 var element = document.createElement('a');
@@ -272,6 +308,24 @@
                 color: #55C755;
                 border-bottom: 1px solid #55C755;
             }
+            .checked{
+                background-color: #55C755;
+                border-radius: 4px;
+                border: 1px solid #55C755;
+                padding: 8px;
+            }
+            .checkbox:hover{
+                border: 1px solid #55C755;
+            }
+            .checkbox{
+                background: none;
+                border-radius: 4px;
+                border: 1px solid #b0b0b0;
+                padding: 8px;
+            }
+            button:hover{
+                cursor: pointer;
+            }
         </style>
     </head>
     <body>
@@ -326,8 +380,23 @@
                     </div>
                 </div>
                 <div id="entrypoint-input" style="width: 100%; height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 50px; display: none;">
+                    <div style="min-width: 70%;">
+                        Does you application use any of these protocols?
+                        <div style="display: flex; align-items: center; justify-content: center; width: min-content; margin-top: 15px; gap: 10px">
+                            <button id="http-button" class="checkbox" onclick="select_http()"></button>
+                            <div>
+                                HTTP
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; width: min-content; margin-top: 10px; gap: 10px">
+                            <button id="https-button" class="checkbox" onclick="select_https()"></button>
+                            <div>
+                                HTTPS
+                            </div>
+                        </div>
+                    </div>
                     <div style="width: 70%;">
-                        Name of your .sh file
+                        Name of the sh file to run on boot
                         <input class="sh-box" id="sh-box" style="min-width: 100%;">
                     </div>
                 </div>
