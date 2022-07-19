@@ -153,13 +153,7 @@
                 if(docker['https'] == true){
                     ports.push('-p 443:443')
                 }
-                return `
-                    echo '${render_dockerfile(docker)}' > dockerfile
-                    docker container stop containerfactoryxyz
-                    docker rm containerfactoryxyz --force
-                    docker build . -t containerfactoryxyz_image
-                    docker run --name containerfactoryxyz ${ports.join(' ')} --mount type=bind,source="$(pwd)",target=~ containerfactoryxyz_image
-                `
+                return `echo '${render_dockerfile(docker)}' > dockerfile\ndocker container stop containerfactoryxyz\ndocker rm containerfactoryxyz --force\ndocker build . -t containerfactoryxyz_image\ndocker run --name containerfactoryxyz ${ports.join(' ')} --mount type=bind,source="$(pwd)",target=~ containerfactoryxyz_image`
             }
             function select_http(){
                 if(docker['http']){
