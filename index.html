@@ -35,7 +35,7 @@
                 return ret;
             }
             function render_dockerfile(spec){
-                return `FROM ${spec['os']}\\nENV HOME ~\\nWORKDIR $HOME\\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\\n#${render_extra_scripts(spec)}\\nRUN chmod +x ./${spec['entrypoint']}\\nCMD ["./${spec['entrypoint']}"]`
+                return `FROM ${spec['os']}\\nENV HOME /srv/containerfactoryxyz\\nWORKDIR $HOME\\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\\n#${render_extra_scripts(spec)}\\nRUN chmod +x ./${spec['entrypoint']}\\nCMD ["./${spec['entrypoint']}"]`
             }
 
             function get_ubuntu_packages(query_d){
@@ -153,7 +153,7 @@
                 if(docker['https'] == true){
                     ports.push('-p 443:443')
                 }
-                return `echo '${render_dockerfile(docker)}' > dockerfile\ndocker container stop containerfactoryxyz\ndocker rm containerfactoryxyz --force\ndocker build . -t containerfactoryxyz_image\ndocker run --name containerfactoryxyz ${ports.join(' ')} --mount type=bind,source="$(pwd)",target=~ containerfactoryxyz_image`
+                return `echo '${render_dockerfile(docker)}' > dockerfile\ndocker container stop containerfactoryxyz\ndocker rm containerfactoryxyz --force\ndocker build . -t containerfactoryxyz_image\ndocker run --name containerfactoryxyz ${ports.join(' ')} --mount type=bind,source="$(pwd)",target=/srv/containerfactoryxyz containerfactoryxyz_image`
             }
             function select_http(){
                 if(docker['http']){
