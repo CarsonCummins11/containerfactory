@@ -44,7 +44,7 @@
                 return ret;
             }
             function render_dockerfile(spec){
-                return `FROM ${spec['os']}\\nENV HOME /srv/containerfactoryxyz\\nRUNmkdir $HOME\\nWORKDIR $HOME\\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\\n#${render_extra_scripts(spec)}\\nCOPY start.sh .\\nRUN chmod +x ./${spec['entrypoint']}\\nCMD ["/bin/bash","./${spec['entrypoint']}"]`
+                return `FROM ${spec['os']}\\nENV HOME /srv/containerfactoryxyz\\nRUN mkdir $HOME\\nWORKDIR $HOME\\nRUN ${get_install_command(spec)} ${spec['programs'].join(' ')}\\n#${render_extra_scripts(spec)}\\nCOPY start.sh .\\nRUN chmod +x ./${spec['entrypoint']}\\nCMD ["/bin/bash","./${spec['entrypoint']}"]`
             }
 
             function get_ubuntu_packages(query_d){
